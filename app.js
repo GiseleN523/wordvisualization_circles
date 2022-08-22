@@ -17,23 +17,6 @@ define(['https://cdn.jsdelivr.net/gh/jasondavies/d3-cloud@master/build/d3.layout
         colorPref : ["#ff0000"],
         rectBoundingPref : false,
         circleBoundingPref : false,
-        setSource: function(s) //ability to set the source that the cloud will be generated based on - takes array of objects of the {word: , weight: } form
-        {
-            source = s;
-
-            radiusScale = d3.scaleLinear() //now that we have the source and know the max weight it contains, define radiusScale, fontSizeScale, and colorScale
-                .domain([1, d3.max(source, d => d.weight)])
-                .range([minRadius, maxRadius]);
-
-            fontSizeScale = d3.scaleLinear()
-                .domain([1, d3.max(source, d => d.weight)])
-                .range([minFontSize, maxFontSize])
-
-            colorScale = d3.scaleLinear()
-                .domain([1, d3.max(source, d => d.weight)])
-                .range(['#e6e6ff', '#0000cc'])
-                .interpolate(d3.interpolateLab);
-        },
         generateCloud: function()
         {
             if(source === undefined) //only proceed if source has been defined
