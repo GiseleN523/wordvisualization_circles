@@ -32,65 +32,6 @@ define(['https://cdn.jsdelivr.net/gh/jasondavies/d3-cloud@master/build/d3.layout
                 .range(['#e6e6ff', '#0000cc'])
                 .interpolate(d3.interpolateLab);
         },
-        generateCloud: function()
-        {
-            if(source === undefined) //only proceed if source has been defined
-            {
-                return;
-            }
-
-            let svg = d3.create('svg') //create svg that will be added to and then returned at the end
-                .attr('height', height)
-                .attr('width', width);
-
-
-            source.forEach(function(item)    //randomly generate x and y coordinates ahead of time that both the circles and texts will use
-            {
-                let collision = true;
-                let r1 = radiusScale(item.weight);
-                let it = 0;
-                while(collision && it < 100) //check for collisions, and, while there are any, pick new x and y (if there have been 100 iterations, give up)
-                {
-                    it++;
-                    item.x = r1 + (Math.random()*(width-r1*2)); //pick random x and y, ensuring circle will be within bounds of svg
-                    item.y = r1 + (Math.random()*(height-r1*2));
-                    collision = false;
-                    for(let i = 0; i<source.indexOf(item); i++) //check each previously chosen set of coordinates and make sure a circle with those coordinates won't collide with this one
-                    {
-                        let item2 = source[i];
-                        let r2 = radiusScale(item2.weight);
-                        if(((item2.x - r2) > (item.x - r1) && (item2.x - r2) < (item.x + r1)) || ((item.x - r1) > (item2.x - r2) && (item.x - r1) < (item2.x + r2)))
-                        {
-                            if(((item2.y - r2) > (item.y - r1) && (item2.y - r2) < (item.y + r1)) || ((item.y - r1) > (item2.y - r2) && (item.y - r1) < (item2.y + r2)))
-                            {
-                                collision = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            });
-
-            svg.selectAll('circle') //create circles based on the source data and previously determined coordinates
-            .data(source)
-            .join('circle')
-            .attr('fill', d =>  colorScale(d.weight))
-            .attr('r', d => radiusScale(d.weight))
-            .attr('cx', d => d.x)
-            .attr('cy', d => d.y);
-
-            svg.selectAll('text') //create text based on the source data and previously determined coordinates
-            .data(source)
-            .join('text')
-            .attr('x', d => d.x)
-            .attr('y', d => d.y)
-            .attr('font-size', d => fontSizeScale(d.weight))
-            .attr('text-anchor', 'middle')
-            .attr('alignment-baseline', 'middle')
-            .text(d => d.word)
-
-            return svg.node();
-        },
         createCloud : function(wordsRaw)
         {
             wordsParsed = parseText(wordsRaw, this.stopWords, this.stopWordPref);
