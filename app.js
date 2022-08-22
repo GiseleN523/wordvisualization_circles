@@ -1,5 +1,7 @@
 define(['https://cdn.jsdelivr.net/gh/jasondavies/d3-cloud@master/build/d3.layout.cloud.js', 'd3'], function(d3cloud, d3)
 {
+    let defaultStop = "should would could also i me my myself we our ours ourselves you your yours yourself yourselves he him his himself she her hers herself it its itself they them their theirs themselves what which who whom this that these those am is are was were be been being have has had having do does did doing a an the and but if or because as until while of at by for with about against between into through during before after above below to from up down in out on off over under again further then once here there when where why how all any both each few more most other some such no nor not only own same so than too very can will just should now"
+
     const width = 1200; //set constant variables to avoid 'magic numbers'
     const height = 800;
     const maxRadius = 170;
@@ -12,7 +14,7 @@ define(['https://cdn.jsdelivr.net/gh/jasondavies/d3-cloud@master/build/d3.layout
     let fontSizeScale;
     let colorScale;
 
-    creator = { //create object that will be returned at the end (in this case, to main.js)
+    return { //create object that will be returned at the end (in this case, to main.js)
         setSource: function(s) //ability to set the source that the cloud will be generated based on - takes array of objects of the {word: , weight: } form
         {
             source = s;
@@ -88,10 +90,122 @@ define(['https://cdn.jsdelivr.net/gh/jasondavies/d3-cloud@master/build/d3.layout
             .text(d => d.word)
 
             return svg.node();
+        },
+        createCloud : function(wordsRaw)
+        {
+            wordsParsed = parseText(wordsRaw, this.stopWords, this.stopWordPref);
+            let words = wordsParsed.slice(0, Math.min(wordsParsed.length, this.numWordsPref)); //if there are more words in text than user specified, remove the extra
+            while(words.length>0 && (words[words.length-1].frequency<=this.minCountPref || (words.length<wordsParsed.length && words[words.length-1].frequency === wordsParsed[words.length].frequency)))
+            { //remove words one at a time until there are no cases of a word being in the list while another word with the same frequency is not in the list, and also remove words with frequency less than minFrequency pref
+                words.pop();
+            }
+
+            let svg = d3.create("svg")
+            .attr("width", this.widthPref)
+            .attr("height", this.heightPref);
+
+            //document.getElementById("wordCloudPreview").append(svg.node()); //for debugging purposes, to see layout created word by word
+
+            let color = d3.hsl(this.colorPref[0]);
+
+            let sizeScale = d3.scaleSqrt()
+                .domain([0, d3.max(words, d => d.frequency)])
+                .range([0, this.fontSizePref])
+
+            let lightnessScale = d3.scaleLinear()
+                .domain([0, d3.max(words, d => d.frequency)])
+                .range(this.lightnessPref ? [.9, .5] : [color.l, color.l])
+
+            let cloud = d3cloud()
+                .words(words)
+                .size([this.widthPref, this.heightPref])
+                .font("sans-serif")
+                .rotate(0)
+                .fontSize(d => d.fontSize)
+                .padding(this.paddingPref)
+                /*.on("word", function(newWord) //for debugging purposes, to see layout created word by word
+                {
+                    console.log(newWord);
+                    svg.append("text")
+                    .attr("font-size", newWord.fontSize)
+                    .attr("font-family", newWord.font)
+                    .attr("text-anchor", "middle") //important
+                    .attr("fill", d3.hsl(color.h, color.s, lightnessScale(newWord.frequency)))
+                    .attr("x", newWord.x) //coordinates assume (0, 0) is the center and will be negative if they're to the left/top of the center point, so adjust here
+                    .attr("y", newWord.y)
+                    .attr("cursor", "pointer")
+                    .attr("semGroup", newWord.semGroup)
+                    .text(newWord.text)
+                })*/
+                .on("end", function() //when cloud generation is finished, create text in svg element
+                {
+                    let size = this.size();
+                    svg.selectAll("text")
+                        .data(words)
+                        .join("text")
+                        .attr("font-size", d => d.fontSize)
+                        .attr("font-family", d => d.font)
+                        .attr("text-anchor", "middle") //important
+                        .attr("fill", d => d3.hsl(color.h, color.s, lightnessScale(d.frequency)))
+                        .attr("x", d => d.x+size[0]/2) //coordinates assume (0, 0) is the center and will be negative if they're to the left/top of the center point, so adjust here
+                        .attr("y", d => d.y+size[1]/2)
+                        .attr("cursor", "pointer")
+                        .attr("semGroup", d => d.semGroup)
+                        .text(d => d.text)
+                        .on('mouseover', function(event, d) 
+                        {
+                            d3.select('#wordFreqTooltip').text("appears "+d.frequency+" times");
+                            d3.select('#wordFreqTooltip').attr('x', d.x+size[0]/2+5);
+                            d3.select('#wordFreqTooltip').attr('y', d.y+size[1]/2+15);
+                            d3.select('#wordFreqTooltip').attr('display', 'block');
+                            this.style['font-weight'] = 'bold';
+                            d3.select("#wordFreqTooltipBackground").attr('x', d.x+size[0]/2);
+                            d3.select("#wordFreqTooltipBackground").attr('y', d.y+size[1]/2);
+                            d3.select("#wordFreqTooltipBackground").attr('display', 'block');
+                        })
+                        .on('mouseout', function() 
+                        {
+                            d3.select('#wordFreqTooltip').text("");
+                            d3.select('#wordFreqTooltip').attr('display', 'none');
+                            this.style['font-weight'] = 'normal';
+                            d3.select("#wordFreqTooltipBackground").attr('display', 'none');
+                        });
+                });
+
+            words.forEach(function(d){
+                d.fontSize = sizeScale(d.frequency);
+            });
+
+            cloud.start();
+            console.log(svg.node());
+
+            let extraWordsTemp = Array.from(document.querySelectorAll('#cloud text')).filter(d => (d['__data__'].x>this.widthPref/2 || d['__data__'].x<0-this.heightPref/2 || d['__data__'].y>this.heightPref/2 || d['__data__'].y<0-this.widthPref/2)).map(d => d['__data__']);
+            //^words that were too big to include (didn't fit); note: this is only words that were placed but are too big to be shown, not words that hypothetically wouldn't fit
+            this.extraWords = extraWordsTemp.concat(wordsParsed.filter(d => !words.includes(d))); //words that were too big or too small to include
+
+            svg.append('rect')
+                .attr('id', 'wordFreqTooltipBackground')
+                .attr('x', 0)
+                .attr('y', 0)
+                .attr('width', 150)
+                .attr('height', 20)
+                .attr('fill', 'white')
+                .attr('stroke', 'black')
+                .attr('display', 'none');
+
+            svg.append('text')
+                .attr('id', 'wordFreqTooltip')
+                .attr('font-size', '16')
+                .attr('x', 0)
+                .attr('y', 0)
+                .attr('width', 150)
+                .attr('height', 10)
+                .attr('border-radius', '3')
+                .attr('display', 'none');
+
+            return svg.node();
         }
     }
-
-    return creator; //return this object so that its dependents can access methods and variables
 
     function parseText(textStr, stopWords, stopWordPref) 
     {
