@@ -93,4 +93,56 @@ define(['d3'], function(d3) //requires d3, which is then stored as d3
 
     return creator; //return this object so that its dependents can access methods and variables
 
+    function parseText(textStr, stopWords, stopWordPref) 
+    {
+        console.log("start parse text"); //analyzing speed
+    
+        let words = textStr.split('\n').join(' ').split('\r').join(' ').split(' ');
+        let cleanWords = words.map(word => word.replace(/[;:()“”."!?,—]/g, "")) //dashes should convert to space not empty str
+        cleanWords = cleanWords.map(word => word.replace(/[-_–]/g, " "))
+        let wordsDict = {}
+        cleanWords.forEach(function(c) {
+          if(c.length > 0)
+          {
+            if(c in wordsDict) {
+              wordsDict[c]++
+            }
+            else {
+              wordsDict[c] = 1
+            }
+          }
+        })
+        let textArr = Object.keys(wordsDict)
+        let freqArr = Object.values(wordsDict)
+        let wordsFreq = []
+        for(let i = 0; i < Object.keys(wordsDict).length; i++){
+          let thisWord = {text: textArr[i], frequency: freqArr[i], semGroup: 1} //call function here that determines semantic group
+          wordsFreq.push(thisWord)
+        }
+        
+        console.log("words added start cleaning"); //analyzing speed
+    
+        //is this n^2?
+        if(stopWordPref)
+        {
+            wordsFreq = wordsFreq.filter(x => stopWords.findIndex(el => {return el.toUpperCase() === x.text.toUpperCase()}) === -1);
+        }
+    
+        //is this n^2?
+        wordsFreq.forEach(function(wordObj) {
+          findMatch = wordsFreq.map(y => y.text).indexOf(wordObj.text.toLowerCase())
+          if (findMatch !== -1 && wordsFreq[findMatch] !== wordObj) {
+            if(wordObj.frequency > wordsFreq[findMatch].frequency) {
+              wordObj.frequency += wordsFreq[findMatch].frequency
+              wordsFreq.splice(findMatch, 1)
+            }
+            else if (wordObj.frequency <= wordsFreq[findMatch].frequency) {
+              wordsFreq[findMatch].frequency += wordObj.frequency
+              wordsFreq.splice(wordsFreq.indexOf(wordObj), 1)
+            }
+          } 
+        })
+        return wordsFreq.sort((e, f) => (e.frequency <= f.frequency) ? 1 : -1); //sort in descending order
+    }
+
 });
