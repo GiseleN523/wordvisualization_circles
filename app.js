@@ -1,4 +1,4 @@
-define(['d3'], function(d3) //requires d3, which is then stored as d3
+define(['https://cdn.jsdelivr.net/gh/jasondavies/d3-cloud@master/build/d3.layout.cloud.js', 'd3'], function(d3cloud, d3)
 {
     const width = 1200; //set constant variables to avoid 'magic numbers'
     const height = 800;
